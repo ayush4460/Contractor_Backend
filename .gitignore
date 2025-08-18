@@ -52,3 +52,17 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Ignore Visual Studio cache
+.vs/
+*.vsidx
+*.vscode/
+*.user
+*.suo
+
+# Ignore environment variables
+.env
+
+# Build output
+bin/
+obj/
