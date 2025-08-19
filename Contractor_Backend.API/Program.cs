@@ -1,10 +1,13 @@
 ﻿using Contractor_Backend.API.HealthChecks;
-using Contractor_Backend.Persistence.UnitOfWork;
+using Contractor_Backend.API.Middleware;
 using Contractor_Backend.Persistence.DbContext;
+using Contractor_Backend.Persistence.UnitOfWork;
+using DotNetEnv;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 // 🔐 0. Load Environment Variables from .env
 // ─────────────────────────────────────────────────────────────
 
-Env.Load(); // Load .env file into Environment.GetEnvironmentVariable
+Env.Load();
 
 var env = builder.Environment;
 
@@ -20,13 +23,18 @@ var env = builder.Environment;
 // 🔧 1. Configure Services (Dependency Injection)
 // ─────────────────────────────────────────────────────────────
 
-builder.Services.AddControllers(); // Core MVC support
+builder.Services.AddControllers(); // No need to attach FluentValidation here
 
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>(); // Business-layer abstraction
+builder.Services
+    .AddFluentValidationAutoValidation() // Enables automatic validation on model binding
+    .AddFluentValidationClientsideAdapters(); // Optional: enables client-side support if needed
 
-builder.Services.AddAppHealthChecks(); // Health check registration
+builder.Services.AddValidatorsFromAssemblyContaining<Program>(); // Registers all validators
 
-builder.Services.AddEndpointsApiExplorer(); // Enables minimal API discovery
+
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddAppHealthChecks();
+builder.Services.AddEndpointsApiExplorer();
 
 if (env.IsDevelopment())
 {
@@ -90,13 +98,13 @@ if (env.IsDevelopment())
     });
 }
 
+app.UseMiddleware<ExceptionHandlingMiddleware>(); // ✅ Global exception handler
+
 app.UseHttpsRedirection();
+app.UseCors("DefaultCorsPolicy");
+app.UseAuthorization();
 
-app.UseCors("DefaultCorsPolicy"); // Apply CORS
-
-app.UseAuthorization(); // Add UseAuthentication if needed
-
-app.MapControllers(); // Route controller endpoints
+app.MapControllers();
 
 // ─────────────────────────────────────────────────────────────
 // ❤️ 6. Health Check Endpoint
